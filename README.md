@@ -1,9 +1,9 @@
 # Terraform-basics
 Terraform advanced file structure for project level
 
-# for plan
+### for plan
 terraform plan -var-file="dev.tfvars"
-# ways for varibels
+### ways for varibels
 during command or env in terminals
 
 ### Variable Definition Precedence
@@ -32,17 +32,109 @@ variable "mytuple" {
     type = tuple(string)
     default = ["one", "two", "three"]
 }
-# how to acces maps and list in code
+### how to acces maps and list in code
 instance type = var.mylist[2]
 instance type = var.mymap["us-east-1"]  its a key value pair
 
 count = 3 for duplication of resources
 when using count use dynamic names with count index
 
+### H ow to use count index in resource
+resource "aws_instance" "ec2" {
+    count = 3
+    tags = {
+        Name = "ec2-${count.index}"
+        project = var.project[count.index]
+    }
+}
+### conditional expression  
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = var.env == "dev" ? "t2.micro" : "t2.small"
+}
+### How to use a builtin functions
+```
+terraform console
+length(var.project)
+max(var.project)
+min(var.project)
+file("path/to/file")
+fileset("path/to/directory", "*.txt")
+
+resource "aws_iam_user" "user" {
+    name = "user"
+}
+
+resource "aws_iam_user_policy" "policy" {
+    name = "policy"
+    user = aws_iam_user.user.name
+    policy = file("iam-user-policy.json")
+}
+ 
+```
+### How to use locals & locals are private resource
+### with locals u can use functions to create dynamic values
+locals {
+    project = ["dev", "prod", "staging"]
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = var.env == "dev" ? "t2.micro" : "t2.small"
+    tags = {
+        Name = "ec2-${count.index}"
+        project = local.project[count.index]
+        project_tags = local.project_tags
+    }
+}
+
+### How to use data sources, it fetches data from aws,etc.,
+data "aws_instance" "ec2" {
+    filter {
+        name = "tag:project"
+        values = ["cgf"]
+    }
+}
+```
+data "aws_ami" "my_image"{
+    most_recent = true
+    owners = ["amazon"]
+    filter {
+        name = "name"
+        values = ["amzn2-ami-hvm-*-x86_64-ebs"]
+    }
+}
+
+
+### 
+
+f
 
 
 
-### Resources
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Resources crash course
 https://github.com/zealvora/terraform-beginner-to-advanced-resource
 Terraform extension in vscode
 Ansible -- configuration management tool
