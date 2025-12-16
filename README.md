@@ -279,7 +279,12 @@ resource "aws_instance" "ec2" {
         Name = "ec2"
     }
     lifecycle {
-        ignore_changes = [tags]
+        ignore_changes = [tags]    
+        # changes made manually and by terraform is ignored
+        create_before_destroy = true
+        prevent_destroy = true
+        replace_triggered_by = [aws_security_group.allow_tls]
+
     } 
     depends_on = [aws_security_group.allow_tls]
     count = 3
@@ -287,7 +292,147 @@ resource "aws_instance" "ec2" {
     provider = "aws.dev"
 }
 ```
-### How to use 
+### How to use Resource dependency
+```
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = "t2.micro"
+    tags = {
+        Name = "ec2"
+    }
+    depends_on = [aws_s3_bucket.bucket]
+}
+```
+### how to use implicit dependency % explicit dependency
+```
+# above dependency example is explicit dependency
+# implicit dependency example
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = "t2.micro"
+    tags = {
+        Name = "ec2"
+    }
+    vpc_security_group_ids = [aws_security_group.prod.id] 
+    # above line of dependency is implicit dependency
+}
+
+resource "aws_security_group" "prod" {
+    name        = "prod-sg"
+    description = "Allow TLS inbound traffic and all outbound traffic"
+    ingress {
+        from_port   = 443
+        to_port     = 443
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+}
+```
+### how to use set(unique) data type
+```
+variable "user" {
+    type = set(string)
+    default = ["john", "jane", "doe"]
+}
+resource "aws_iam_user" "user" {
+    # use for each with a set directly
+    for_each = var.user
+    name = "user-${each.value}"
+    path = "/system/"
+}
+
+output "user_arn" {
+    value = aws_iam_user.user[*].arn
+}
+
+```
+### How to use for_each with map    
+```
+variable "map" {
+    type = map(string)
+    # or 
+    # type = map # then anything can be written but above only string is allowed
+    # type = object({
+    #     name = number
+    #     email = string
+    # })   # this can also be written for exact type usage in object
+    default = {
+        "john" = "john@example.com"
+        "jane" = "jane@example.com"
+        "doe" = "doe@example.com"
+    }
+
+}
+
+resource "aws_instance" "ec2" {
+    for_each = var.map
+    ami = each.value
+    instance_type = "t2.micro"
+    tags = {
+        Name = each.key
+    }    
+}
+```
+### terraform provisioners
+```
+# remote-exec local-exec
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = "t2.micro"
+    tags = {
+        Name = "ec2"
+    }    
+    connection {
+        type = "ssh"
+        user = "ec2-user"
+        private_key = file("~/.ssh/id_rsa")
+    }
+    provisioner "remote-exec" {
+        inline = [
+            "echo 'Hello, World!' > index.html",
+            "aws s3 cp index.html s3://my-bucket"
+        ]
+        when = "create"
+    }
+    provisioner "local-exec" {
+        when = "destroy"
+        on_failure = "continue"
+        # on_failure = "fail"
+        command = "echo 'Hello, World!' > index.html"
+        inline = [
+            "echo 'Hello, World!' > index.html",
+            "echo ${self.public_ip} >> server_ip.txt"
+        ]
+    }
+}
+
+```
+### How to use modules
+```
+module "ec2" {
+    source = "./modules/ec2"
+    ami = "ami-0c55b159cbfafe1f0" 
+}
+```
+### 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
