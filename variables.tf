@@ -1,6 +1,7 @@
 variable "vpn_ip" {
     default = "ami-1234"
 }
+
 variable "project_tags" {
     type = map
     default = {
