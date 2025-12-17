@@ -21,7 +21,17 @@ resource "aws_security_group" "allow_tls" {
 
 }
 
-
+# terraform {
+#     backend "s3" {
+#     bucket = "eeswar-terraform-state"
+#     key = "terraform.tfstate"
+#     region = "us-east-1"
+#     use_lockfile = true
+#     encrypt = true
+#     dynamodb_table = "eeswar-terraform-lock"
+#     profile = "eeswar"
+#   }
+# }
 
 
 

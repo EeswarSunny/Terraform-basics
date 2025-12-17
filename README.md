@@ -407,19 +407,145 @@ resource "aws_instance" "ec2" {
 }
 
 ```
-### How to use modules
+### How to use trusted modules by terraform parters
 ```
 module "ec2" {
     source = "./modules/ec2"
     ami = "ami-0c55b159cbfafe1f0" 
 }
+# modules are predefined resources
 ```
-### 
+### How to use child module outputs
+```
+module "ec2" {
+    source = "./modules/ec2"
+    ami = "ami-0c55b159cbfafe1f0" 
+}
+resource "aws_eip" "lb"{
+    instance = module.ec2.instance_id
+    domain = "vpc"
+}
+```
+### Basics of standard Module Structure
+diffrent modules for diffrent resources ex: Network, Web, App, Database, Routing, Security, Storage, etc.
+
+### How to use multiple provider config in modules
+using alias feature
+```
+provider "aws" {
+    alias = "dev"
+    region = "us-east-1"
+}
+provider "aws" {
+    alias = "prod"
+    region = "us-east-2"
+}
+
+```
+### Requirement for publishing modules
+| Requirement | Description |
+| Github | The module must be on GitHub and must be a public repo. This is only a requirement for the public registry. |
+| Named |  Module repositories must use this three-part name format terraform-Provider>-<Name> |
+| Repository Description |   he GitHub repository description is used to populate the short description of the module. |
+| Standard module structure | The module must adhere to the standard module structure. |
+| x.y.z tags for releases | The registry uses tags to identify module versions. Release tag names must be a semantic version, which can optionally be prefixed with a v. For example, v1.0.4 and 0.9.2 |
+
+### Tree Structure
+$ tree minimal-module/
+.
+├── README.md
+├── main.tf
+├── variables.tf
+└── outputs.tf
+
+$ tree complete-module/
+.
+├── README.md
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── ...
+├── modules/
+│   ├── nestedA/
+│   │   ├── README.md
+│   │   ├── variables.tf
+│   │   ├── main.tf
+│   │   └── outputs.tf
+│   ├── nestedB/
+│   ├── .../
+├── examples/
+│   ├── exampleA/
+│   │   ├── main.tf
+│   ├── exampleB/
+│   ├── .../
+
+### How to use diff values in workspaces
+```
+locals {
+    instance_type = {
+        default = "t2.micro"
+        "prod" = "t2.large"
+        "dev" = "t2.micro"
+    }
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = local.instance_type[terraform.workspace]  
+}
+
+```
+### State locking
+```
+resource "time_sleep" "wait_100_seconds" {
+    create_duration = "100s"
+}
+
+```
+### terraform state management
+```
+terraform state list
+# to list all resources in state
+terraform state pull
+# to pull state from s3
+terraform state rm aws_instance.ec2
+# from now on terraform doesnt manage aws_instance.ec2
+terraform state mv aws_instance.ec2 aws_instance.ec2_new
+# to move/rename aws_instance.ec2 to aws_instance.ec2_new
+terraform state show aws_instance.ec2
+# to show state of aws_instance.ec2
+terraform state replace aws_instance.ec2
+# to replace aws_instance.ec2
+terraform state rm aws_instance.ec2
+# to remove aws_instance.ec2
+terraform state mv aws_instance.ec2 aws_instance.ec2_new
+# to move aws_instance.ec2 to aws_instance.ec2_new
+terraform state show aws_instance.ec2
+```
+### how to use remote state data source
+```
+data "terraform_remote_state" "state" {
+    backend = "s3"
+    config = {
+        bucket = "eeswar-terraform-state"
+        key = "terraform.tfstate"
+        region = "us-east-1"
+        use_lockfile = true
+        encrypt = true
+        dynamodb_table = "eeswar-terraform-lock"
+        profile = "eeswar"
+    }
+}
+```
+
+
  
 
 
 
 
+
+ 
 
 
 
