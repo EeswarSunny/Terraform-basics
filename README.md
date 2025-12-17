@@ -53,7 +53,7 @@ variable "mytuple" {
     type = tuple(string)
     default = ["one", "two", "three"]
 }
-### how to acces maps and list in code
+### How to acces maps and list in code
 instance type = var.mylist[2]
 instance type = var.mymap["us-east-1"]  its a key value pair
 
@@ -303,7 +303,7 @@ resource "aws_instance" "ec2" {
     depends_on = [aws_s3_bucket.bucket]
 }
 ```
-### how to use implicit dependency % explicit dependency
+### How to use implicit dependency % explicit dependency
 ```
 # above dependency example is explicit dependency
 # implicit dependency example
@@ -328,7 +328,7 @@ resource "aws_security_group" "prod" {
     }
 }
 ```
-### how to use set(unique) data type
+### How to use set(unique) data type
 ```
 variable "user" {
     type = set(string)
@@ -495,6 +495,36 @@ resource "aws_instance" "ec2" {
 }
 
 ```
+
+### How to use workspaces
+```
+terraform workspace new dev
+# use terraform workspace to get list of commnds 
+terraform workspace list
+terraform workspace select dev
+terraform workspace delete dev
+terraform workspace show
+
+```
+# Section 7 Remote state management
+
+! always use git for collaboration along with gitignore file to avoid data leaks and use s3 for backend 
+
+### How to s3 backend 
+```
+terraform {
+    backend "s3" {
+    bucket = "eeswar-terraform-state"
+    key = "terraform.tfstate"
+    region = "us-east-1"
+    use_lockfile = true
+    encrypt = true
+    dynamodb_table = "eeswar-terraform-lock"
+    profile = "eeswar"
+  }
+}
+```
+
 ### State locking
 ```
 resource "time_sleep" "wait_100_seconds" {
@@ -502,6 +532,7 @@ resource "time_sleep" "wait_100_seconds" {
 }
 
 ```
+
 ### terraform state management
 ```
 terraform state list
@@ -522,21 +553,483 @@ terraform state mv aws_instance.ec2 aws_instance.ec2_new
 # to move aws_instance.ec2 to aws_instance.ec2_new
 terraform state show aws_instance.ec2
 ```
-### how to use remote state data source
+### How to use remote state data source
 ```
-data "terraform_remote_state" "state" {
+data "terraform_remote_state" "eip{
     backend = "s3"
     config = {
         bucket = "eeswar-terraform-state"
         key = "terraform.tfstate"
         region = "us-east-1"
-        use_lockfile = true
-        encrypt = true
-        dynamodb_table = "eeswar-terraform-lock"
-        profile = "eeswar"
     }
 }
+outputs "eip_addr" {
+    value = aws_eip.eip_addr
+}
+resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4"{
+ security_group_id = aws_vpc_security_group.allow_tls.id
+ cidr_ipv4 = "${data.terraform_remote_state.eip.outputs.eip_addr}/32"
+ ip_protocol = "tcp"
+ from_port = 443
+ to_port = 443
+}
+
 ```
+### how to use terraform import
+```
+import {
+    to = aws_security_group.my_sg
+    id = "sg-0c55b159cbfafe1f0"
+}
+# after that you apply dynamic plan
+
+terraform plan -generate-config-out=my_sg.tf
+terraform apply
+
+# above command will update state file with imported resource
+# now you can use this resource in your code with terraform 1.5
+```
+# Section 8 Security Primer
+
+### How to use alias meta-argument
+```
+provider "aws" {
+    alias = "dev"
+    region = "us-east-1"
+}
+provider "aws" {
+    alias = "prod"
+    region = "us-east-2"
+}
+
+resource "aws_instance" "ec2" {
+    provider = "aws.dev"
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = "t2.micro"
+}
+
+resource "aws_instance" "ec2" {
+    provider = "aws.prod"
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = "t2.micro"
+}
+
+```
+### How to use sensitive parameter
+```
+variable "password" {
+    type = string
+    sensitive = true
+}
+# for sensitive variables terraform will throw error if use it in outputs if you want to use it in outputs use 
+output "password" {
+    value = var.password
+    sensitive = true
+}
+
+```
+### How to use terraform(HashiCorp) vault, its like aws secrets manager
+```
+terraform apply -var="password=${vault_password}"
+# it creates temp credentials and use it to fetch secrets from vault
+
+provider "vault" {
+    address = "http://127.0.0.1:8200"
+    token = "my-token"
+}
+data "vault_generic_secret" "password" {
+    path = "secret/data/my-secret"
+}
+
+```
+###  How to use dependency lock
+```
+# its done automatically below is the file related to it
+.terraform.lock.hcl
+
+```
+# Section 9 HCP (HashiCorp Cloud Platform) cloud & Enterprise
+its like a ci/cd platform for infra as code
+### HCP Terraform pricing
+https://www.hashicorp.com/en/pricing?tab=terraform
+
+### HCP Terraform features
+1. organizations
+all companies uses only above feature not below features commonly
+2. Workspaces
+    1. version Control Workflow
+    2. CLI-driven Workflow
+    3. API-driven Workflow
+3. Projects
+4. Team Management
+5. 
+### Sentinal (Policy as Code)
+it is same as scp (service control policy) in aws 
+
+### Air gap in terraform cloud
+It ensures that data can only be accessed or transferred locally, preventing remote cyberattacks and unauthorized data exfiltration.
+
+### HCP Terraform private Reistry
+its like aws ecr but for terraform modules
+
+
+# Section 10 Terraform Challenges use trial and error method to solve challenges
+
+### Challenge 1 ip should be created in aws , you can modify your code as you like 
+```
+provider "aws" {
+  version = "~> 2.54"
+  region  = "us-east-1"
+  access_key = "AKIAIOSFODNN7EXAMPLE"
+  secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+}
+
+provider "digitalocean" {}
+
+terraform {
+    required_version = "0.12.31"
+}
+
+
+resource "aws_eip" "eeswar_app_ip" {
+  vpc      = true
+}
+```
+### challenge 2 optimize the code for best practices and resource should be created
+```
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+variable "splunk" {
+  default = "8088"
+  # modify 8088 to 8089 using variable precedence
+}
+resource "aws_security_group" "security_group_payment_app" {
+  name        = "payment_app"
+    description = "Application Security Group"
+  depends_on = [aws_eip.example]
+
+# Below ingress allows HTTPS  from DEV VPC
+  ingress {
+       from_port        = 443
+     to_port          = 443
+    protocol         = "tcp"
+      cidr_blocks      = ["172.31.0.0/16"]
+  }
+
+# Below ingress allows APIs access from DEV VPC
+
+  ingress {
+    from_port        = 8080
+      to_port          = 8080
+    protocol         = "tcp"
+       cidr_blocks      = ["172.31.0.0/16"]
+  }
+
+# Below ingress allows APIs access from Prod App Public IP.
+
+  ingress {
+    from_port        = 8443
+      to_port          = 8443
+    protocol         = "tcp"
+       cidr_blocks      = ["${aws_eip.example.public_ip}/32"]
+  }
+}
+ egress {
+    from_port        = var.splunk
+    to_port          = var.splunk
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+
+
+resource "aws_eip" "example" {
+   domain = "vpc"
+}
+
+```
+### challenge 3  according to the values of map create resources  and if map values removed , ec2 instance should be deleted
+```
+# main.tf
+variable "instance_config" {
+  type = map
+  default = {
+    instance1 = { instance_type = "t2.micro", ami = "ami-03a6eaae9938c858c" }
+    instance2 = { instance_type = "t2.small", ami = "ami-053b0d53c279acc90" }
+  }
+}
+# providers.tf
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+```
+### challenge 4 
+```
+.gitkeep file
+1. Clients wants a code that can create IAM user in AWS account with following
+syntax:
+admin-user-{account-number-of-aws}
+2. Client wants to have a logic that will show names of ALL users in AWS account in the output.
+3. Along with list of users in AWS, client also wants Terraform to show Total number of users in AWS.
+```
+
+### Solution 1
+```
+
+terraform {
+  required_providers {
+    digitalocean = {
+      source = "digitalocean/digitalocean"
+      version = "2.71.0"
+    }
+  }
+}
+
+variable "do_token" {
+    type = string
+    sensitive = true
+}
+
+provider "digitalocean" {
+  token = var.do_token
+}
+
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "6.26.0"
+    }
+  }
+}
+
+provider "aws" {
+    region     = "us-east-1"
+    profile = "eeswar"
+    # credentials are given in variables at terminal level
+}
+resource "aws_eip" "lb" {
+  domain   = "vpc"
+}
+```
+### Solution 2
+```
+# use providers.tf  sg.tf variables.tf terraform.tfvars eip.tf
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_security_group" "payment_app" {
+  name        = "payment_app"
+  description = "Application Security Group"
+  depends_on = [aws_eip.example]
+  
+
+ # Below ingress allows HTTPS  from DEV VPC
+  ingress {
+    description = "HTTPS access from DEV VPC"
+    from_port        = var.https
+    to_port          = var.https
+    protocol         = "tcp"
+    cidr_blocks      = [var.dev_vpc]
+  }
+
+ # Below ingress allows APIs access from DEV VPC
+
+  ingress {
+    description = "APIs access from DEV VPC"
+    from_port        = var.apis
+    to_port          = var.apis
+    protocol         = "tcp"
+    cidr_blocks      = [var.dev_vpc]
+  }
+
+ # Below ingress allows APIs access from Prod App Public IP.
+
+  ingress {
+    description = "APIs access from Prod App Public IP"
+    from_port        = var.prod_apis
+    to_port          = var.prod_apis
+    protocol         = "tcp"
+    cidr_blocks      = ["${aws_eip.example.public_ip}/32"]
+  }
+  egress {
+    description = "Splunk access from all VPC"
+    from_port        = var.splunk
+    to_port          = var.splunk
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = "payment_app"
+    Team = "Payments Team"
+    Env = "Dev"
+  }
+}
+ 
+
+resource "aws_eip" "example" {
+   domain = "vpc"
+   tags = {
+    Name = "payment_app"
+    Team = "Payments Team"
+    Env = "Dev"
+  }
+}
+
+# below values in varibales.tf
+variable "https" {}
+variable "apis" {}
+variable "splunk" {
+    default = "8088"
+}
+# use terraform plan -var="splunk=8089" to override default value
+variable "prod_apis" {}
+variable "dev_vpc" {}
+
+# below values in terraform.tfvars
+https = "443"
+apis = "8080"
+prod_apis = "8443"
+dev_vpc = "172.32.0.0/16"
+
+```
+### Solution 3
+```
+# main.tf
+variable "instance_config" {
+  type = map
+  default = {
+    instance1 = { instance_type = "t2.micro", ami = "ami-03a6eaae9938c858c" }
+    instance2 = { instance_type = "t2.small", ami = "ami-053b0d53c279acc90" }
+  }
+}
+
+resource "aws_instance" "example" {
+    for_each = var.instance_config
+    ami           = data.aws_ami.ubuntu.id
+    instance_type = each.value.instance_type
+
+  tags = {
+    Name = "HelloWorld"
+  }
+}
+
+
+# providers.tf
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+```
+### Solution 4
+```
+# 2
+provider "aws" {
+  region = "us-east-1"
+}
+data "aws_iam_users" "users" {}
+
+outputs "user_names"{
+  value = data.aws_iam_users.users.names
+}
+# 3 
+output "total_users" {
+    value = length(data.aws_iam_users.users.names)
+}
+#1 
+data "aws_caller_identity" "current" {}
+
+resource "aws_iam_user" "admin-user-${data.aws_caller_identity.current.account_id}" {
+    name = "admin-user-${data.aws_caller_identity.current.account_id}"
+    path = "/system/"
+}
+
+
+```
+
+# Section 11 terraform associate exam
+### associate exam requirements
+1. physical governament id card is required to show during the exam
+2. recommended to have 2 another ids with larger text of name
+3. check your system compatability in chrome for exam 
+4. pyhysical space 
+      Room Requirements
+    No one else is permitted to be in your testing room for the duration of your exam.
+    Be sure your space is adequately lit, so the proctor can see you and your space.
+    Your desk and work area must be clear.
+    Any electronics in the room must not be operational.
+    Background noise must be as limited as possible.
+    No phones, smartwatches, or other similar devices are allowed in the room.
+    #### can be called same as aws exam 
+5. Make sure there are no notification that appear on your screen while giving the exams.
+6. Always verify the updated guidelines released by HashiCorp for the exams to ensure you get the latest update before sitting for the exams.
+7. https://hashicorp-certifications.zendesk.com/hc/en-us/articles/26234761626125-Exam-appointment-rules-and-requirements
+8. 
+
+### sample notes
+1. provider block is not mandatory
+2. different aliases can be used for the same provider
+3. store creds outside of terraform like env
+4. required_provider is only for specifying name & version of provider, for specs of providers use provider block.
+5. required_version = "2.0" is for locking the terraform version
+6. there are 3 provider tiers 1.Official 2. Partner 3. Community
+7. terraform init -upgrade is used for upgrade of versions within constraints.
+8. terraform plan does nit modify anything even in state file it just shows the changes that will be made.
+9. terraform plan -out is  used to save the plan 
+10. terraform apply --auto-approve is used for applying the changes. and it doesnt import any resource.
+11. terraform destroy is used for destroying the resources & terraform apply can also be used for destroying the resource
+12. terraform fmt is use for formatting the code
+13. terraform fmt -check is used for read operation
+14. terraform fmt -recursive is used for write operation sub directories also
+15. terraform validate is used for validating the code
+16. terraform workspace is used for managing multiple environments
+17. terraform workspace new is used for creating new workspace
+18. terraform workspace show is used for showing current workspace
+19. terraform workspace list is used for listing all workspaces
+20. terraform workspace delete is used for deleting workspace
+
+
 
 
  
@@ -612,8 +1105,6 @@ varible "vpn_ip" {
 
 # usage var.vpn_ip
 ```
-
-
 
 ```
 terraform init

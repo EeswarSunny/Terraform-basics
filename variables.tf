@@ -4,6 +4,7 @@ variable "vpn_ip" {
 
 variable "project_tags" {
     type = map
+    sensitive = true
     default = {
         Name = "ec2"
         project = "dev"
