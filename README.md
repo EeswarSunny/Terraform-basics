@@ -1001,7 +1001,7 @@ resource "aws_iam_user" "admin-user-${data.aws_caller_identity.current.account_i
     Any electronics in the room must not be operational.
     Background noise must be as limited as possible.
     No phones, smartwatches, or other similar devices are allowed in the room.
-    #### can be called same as aws exam 
+    ***can be called same as aws exam***
 5. Make sure there are no notification that appear on your screen while giving the exams.
 6. Always verify the updated guidelines released by HashiCorp for the exams to ensure you get the latest update before sitting for the exams.
 7. https://hashicorp-certifications.zendesk.com/hc/en-us/articles/26234761626125-Exam-appointment-rules-and-requirements
@@ -1022,12 +1022,132 @@ resource "aws_iam_user" "admin-user-${data.aws_caller_identity.current.account_i
 12. terraform fmt is use for formatting the code
 13. terraform fmt -check is used for read operation
 14. terraform fmt -recursive is used for write operation sub directories also
-15. terraform validate is used for validating the code
-16. terraform workspace is used for managing multiple environments
-17. terraform workspace new is used for creating new workspace
-18. terraform workspace show is used for showing current workspace
-19. terraform workspace list is used for listing all workspaces
-20. terraform workspace delete is used for deleting workspace
+15. terraform validate is used for validating syntax of the code
+16. terraform refresh is depreciated and unsafe
+17. resource block reference name must be unique
+18. array data types are not supported in terraform
+19. terraform state sub-commands  list, mv, pull, push, rm, show
+20. note that env variable are there for log like TF_LOG, TFLOG_PATH 
+21. terarform import is used for importing existing resources from remote
+22. locals values are used when u want to avoid repetition of code & it can reference variables and other locals also
+23. terraform workspace is used for managing multiple environments
+24. terraform module is used for reusing the code
+module "ec2" {
+  source = "terraform-aws-modules/vpc/aws"
+}
+25. local paths do not support versions of modules
+26. root and child module difference
+27. git::   by using that use can use git repos as modules
+28. module output  format : module.module_name.output_name
+29. module versions can be used by specifying version in module block
+30. terraform registry , module address format : hostname/namespace/name/system
+31. user-defined functions are not suppoerted , available ones are , numeric, string, collection, filesysytem functions
+| Function Categories | Functions Available |
+|Numeric Functions | abs, ceil, floor, max, min |
+|String Functions | concat, replace, split, join, tolower, toupper |
+|Collection Functions | element, keys, length, merge, sort, slice |
+|Filesystem Functions | file, filebase64, dirname |
+
+|ex: lookup function  | ex: zipmap function |
+|lookup({
+    "apple" = "red"
+    "banana" = "yellow"
+}, "apple")
+red| zipmap(["a", "b"], [1, 2])
+{a=1, b=2}|
+|ex: index function  | ex: element function |
+| index(["a", "b"], 1)
+"b" | element(["a", "b"], 0)
+"a" |
+|ex: toset function| ex: timestamp function  |
+|toset(["c", "b", "a"])
+{a, b, c}| formatdate(timestamp(), "YYYY-MM-DD")
+"2021-09-01" |
+|ex: file function  | ex: filebase64 function |
+| file("/path/to/file")
+"file contents" | filebase64("/path/to/file")
+"base64 encoded file contents" |
+|ex: keys function  | ex: length function |
+| keys({"a" = 1, "b" = 2})
+["a", "b"] | length(["a", "b"])
+2 |
+|ex: merge function  | ex: sort function |
+| merge({"a" = 1, "b" = 2}, {"b" = 3, "c" = 4})
+{"a" = 1, "b" = 3, "c" = 4} | sort(["a", "b", "c"])
+["a", "b", "c"] |
+|ex: slice function  | ex: zipmap function |
+| slice(["a", "b", "c"], 1, 2)
+["b", "c"] | zipmap(["a", "b"], [1, 2])
+{a=1, b=2} |
+|ex: sort function  | ex: dirname function |
+| sort(["a", "b", "c"])
+["a", "b", "c"] | dirname("/path/to/file")
+"/path/to" |
+|ex: filebase64 function  | ex: filebase64sha256 function |
+| filebase64("/path/to/file")
+"base64 encoded file contents" | filebase64sha256("/path/to/file")
+"base64 encoded file contents sha256" |
+
+32. Meta arguments in terraform 
+  1. depends_on   description: used for explicit dependency
+  2. count description: used for creating multiple resources
+  3. for_each description: used for creating multiple resources
+  4. provider  desc: used for specifying provider
+  5. lifecycle desc: used for managing resource lifecycle
+     1. create_before_destroy  desc: used for creating resource before destroying
+     2. prevent_destroy desc: used for preventing resource deletion
+     3. ignore_changes desc: used for ignoring changes
+     4. replace_triggered_by desc: used for replacing resource 
+33. sectinal checks : runs before plan
+34. terraform graph : visual representation of resources note dot format
+35. terraform tvfars : used for variables declaration > variables.tf > terraform.tfvars or dev.tfvars
+36. order variable defaults < *.tfcars < env variables < CLI variables   :::: env example export TF_VAR_vpn_ip="101.30.13.03/32"  in linux
+37. precedence -var in cli overerides *.auto.tfvars or *.auto.tfvars.json overerides terraform.tfvars.json overrides terraform.tfvars overerides env variables
+38. use outputs to store data about resource in state file
+39. terraform console : used for interactive mode
+40. dependency lock file : used for locking the version of the provider
+41. implecent vs explicit dependency : **Implicit** dependencies are created **automatically** when resources share data (referencing an ID), while **Explicit** dependencies are created **manually** using `depends_on` to force a specific order.
+42. features of Terraform enterprise plan
+    1. sso
+    2. auditing 
+    3. private data center networking
+    4. clustering
+    5. Team & Governance feature are not available in terraform cloud free tier
+    6. explore more on https://www.hashicorp.com/en/pricing?tab=terraform 
+43. HCP Hashicorp cloud platform , it also has private module registry
+44. encryption of state file is also available in saas of hcp
+45. Hcp workspace linked to version controlled repository(single branch)  then it runs auto on source code changes
+46. terraform apply -replace="aws_instance.ec2" : used for replacing resource
+47. Benefits of terraform iac 
+    1. Automation
+    2. Version control
+    3. Reusability
+48. modules of git registry : uses default branch u can also override it : git::https://github.com/terraform-aws-modules/vpc.git?ref=tags/v3.11.0
+49. splat expressions : used for accessing multiple values from a list or map : aws_instance.ec2[*].id
+50. list usage : var.list_of_values[0]
+51. map usage : var.map_of_values["key"]
+52. Large Infra: Break the infrastructure into separate state files (splitting the state) to prevent API rate limiting and reduce blast radius.
+53. backend : used for storing state file in remote storage :  migrate backend option is there
+54. Air Gapped environemnet isolation : isolates physical hardware from internet
+55. requirements for publishing Module in registry : 1. Github, 2. Named terraform-<Provider>-<Module Name> 3. Repo desc, 4. Standard Module structure 5. x.y.z tags for releases
+56. disadvantage of dynamic block : hard to read & maintain
+57. api & cli access for terraform is through tokens
+58. terrafomr uses parallelism to speed up the execution
+59. terraform providers can be installed through airgapped systems
+60. terraform & terrafomr provider doesnt need major version compatability
+61. ! sensitive values are visible in state file 
+62. during state lock : plan, destroy, apply, refresh, and other state commands are blocked
+63. go through terraform .gitignore file for more info
+64. terraform force-unlock <lock-id> : used for unlocking state file
+65. Data Type of Object & Multiple Provider Configuration in Modules are important for exam
+66. make use of Data Source for dynamic ami_id
+67. output values are defined in the Child and Root modules: When you run terraform apply it shows output values of root module without explicit call to teh child module.
+68. if variable typr is string and value is number then it converts to string automatically
+69. to migrate the Terraform state file from localhost to S3 bucket you need terraform init command not any other
+70. Terraform will not store the default value of the variable and its description in the Terraform state file
+71. 
+
+
 
 
 
