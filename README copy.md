@@ -27,7 +27,7 @@ A comprehensive guide covering Terraform advanced file structures, CLI commands,
 ## Section 1: Basic Commands & Settings
 
 ### Initialization & Lifecycle
-```bash
+```
 terraform init          # Initialize directory
 terraform init -upgrade # Upgrade modules/plugins
 
@@ -41,11 +41,10 @@ terraform show -json ec2.plan | jq # View plan as JSON
 terraform apply         # Apply changes
 terraform apply ec2.plan # Apply saved plan
 
-# terraform destroy     # Destroy resources
+# terraform destroy     # Destroy resources   
+```
 
-> [!NOTE]
-> 
-> Terraform loads all configuration files in a directory as a single unit.
+> [!NOTE] Terraform loads all configuration files in a directory as a single unit.
 
 ### Terraform Settings Block
 
@@ -78,18 +77,11 @@ terraform destroy -target=aws_instance.ec2
 Terraform loads variables in this order (last one wins):
 
 1. Environment variables (`TF_VAR_name`)
-    
 2. `terraform.tfvars`
-    
 3. `terraform.tfvars.json`
-    
 4. `*.auto.tfvars` or `*.auto.tfvars.json`
-    
 5. `-var` and `-var-file` CLI options
-    
-
 ### Complex Data Types
-
 Terraform
 
 ```
@@ -115,9 +107,7 @@ variable "mytuple" {
 ```
 
 **Accessing Values:**
-
 Terraform
-
 ```
 instance_type = var.mylist[2]
 instance_type = var.mymap["us-east-1"] 
@@ -128,7 +118,6 @@ instance_type = var.mymap["us-east-1"]
 ## Section 3: Logic, Functions & Locals
 
 ### Count & Splat Expressions
-
 Terraform
 
 ```
@@ -147,9 +136,7 @@ output "arns" {
 ```
 
 ### Conditional Expressions
-
 Terraform
-
 ```
 resource "aws_instance" "ec2" {
     ami           = "ami-0c55b159cbfafe1f0"
@@ -158,9 +145,7 @@ resource "aws_instance" "ec2" {
 ```
 
 ### Locals
-
 Locals are private to the module and allow dynamic logic.
-
 Terraform
 
 ```
@@ -170,9 +155,6 @@ locals {
 ```
 
 ### Built-in Functions Console
-
-Bash
-
 ```
 terraform console
 > length(var.project)
@@ -186,11 +168,8 @@ terraform console
 ## Section 4: Data Sources & Debugging
 
 ### Data Sources
-
 Fetching data from AWS dynamically.
-
 Terraform
-
 ```
 data "aws_ami" "my_image" {
     most_recent = true
@@ -203,11 +182,8 @@ data "aws_ami" "my_image" {
 ```
 
 ### Dynamic Blocks
-
 Cleanly handle repeated nested blocks (like ingress rules).
-
 Terraform
-
 ```
 resource "aws_security_group" "dynamicsg" {
     name = "dynamic-sg"
@@ -225,11 +201,8 @@ resource "aws_security_group" "dynamicsg" {
 ```
 
 ### Debugging
-
 **Log Levels:** `DEBUG`, `TRACE`, `INFO`, `WARN`, `ERROR`
-
 Bash
-
 ```
 export TF_LOG="TRACE"
 export TF_LOG_PATH="./terraform.log"
@@ -240,13 +213,10 @@ export TF_LOG_PATH="./terraform.log"
 ---
 
 ## Section 5: Provisioners & Modules
-
 ### Provisioners
-
 > [!WARNING]
 > 
 > Use only as a last resort.
-
 Terraform
 
 ```
@@ -267,9 +237,7 @@ resource "aws_instance" "ec2" {
 ```
 
 ### Modules
-
 **Standard Structure:**
-
 Plaintext
 
 ```
@@ -281,9 +249,7 @@ minimal-module/
 ```
 
 **Usage:**
-
 Terraform
-
 ```
 module "ec2" {
     source = "./modules/ec2"
@@ -298,15 +264,9 @@ resource "aws_eip" "lb" {
 **Publishing Requirements:** GitHub Public Repo, Format `terraform-<Provider>-<Name>`, Semantic Versioning tags (v1.0.4).
 
 ---
-
 ## Section 6: Workspaces & State Basics
-
 ### Workspaces
-
 Manage different environments (dev, prod) with the same code.
-
-Bash
-
 ```
 terraform workspace new dev
 terraform workspace select dev
@@ -315,16 +275,12 @@ terraform workspace show
 ```
 
 **Workspace Interpolation:**
-
 Terraform
-
 ```
 instance_type = local.instance_type[terraform.workspace]
 ```
 
 ### Basic State Commands
-
-Bash
 
 ```
 terraform state list
@@ -336,14 +292,11 @@ terraform apply -replace="aws_instance.ec2"  # Force recreate
 
 ### Terraform Graph
 
-Bash
-
 ```
 terraform graph | dot -Tsvg > graph.svg
 ```
 
 ---
-
 ## Section 7: Remote State Management
 
 > [!IMPORTANT]
@@ -353,7 +306,6 @@ terraform graph | dot -Tsvg > graph.svg
 ### S3 Backend Configuration
 
 Terraform
-
 ```
 terraform {
   backend "s3" {
@@ -369,18 +321,14 @@ terraform {
 ```
 
 ### State Locking
-
 Prevents concurrent operations. Terraform uses DynamoDB for locking with S3.
 
 - **Force Unlock:** `terraform force-unlock <lock-id>` (Use with extreme caution).
-    
 
 ### Remote State Data Source
 
 Read outputs from another Terraform project's state file.
-
 Terraform
-
 ```
 data "terraform_remote_state" "eip" {
     backend = "s3"
@@ -397,7 +345,6 @@ data "terraform_remote_state" "eip" {
 ## Section 8: Security Primer
 
 ### Sensitive Variables
-
 Terraform
 
 ```
@@ -415,7 +362,6 @@ output "password" {
 ### HashiCorp Vault
 
 Dynamic secrets engine.
-
 Terraform
 
 ```
@@ -426,7 +372,6 @@ provider "vault" {
 ```
 
 ### Multiple Providers (Aliases)
-
 Terraform
 
 ```
@@ -450,17 +395,11 @@ resource "aws_instance" "ec2" {
 ## Section 9: HCP Cloud & Enterprise
 
 **Key Features:**
-
 - **Organizations & Teams:** Governance structure.
-    
 - **Workspaces:** VCS-driven, CLI-driven, or API-driven workflows.
-    
 - **Sentinel:** Policy as Code (checks run _before_ apply).
-    
 - **Private Registry:** Private storage for modules.
-    
 - **Air Gap:** For strict security environments (no internet).
-    
 
 ---
 
@@ -554,30 +493,19 @@ resource "aws_instance" "example" {
 ### 📋 Exam Requirements
 
 1. **ID:** Physical Government ID required.
-    
 2. **Environment:** Clear desk, no electronics, no noise, adequate lighting.
-    
 3. **Prohibitions:** No phones, smartwatches, or other people in the room.
-    
 
 ### 📝 Quick Review Notes
 
 - **Provider Block:** Not mandatory.
-    
 - **Version Constraints:** `required_version = ">= 1.0"` locks Terraform core version.
-    
 - **Refresh:** Deprecated; `terraform apply` refreshes state automatically.
-    
 - **Functions:** User-defined functions are **not** supported.
-    
 - **Implicit vs Explicit Dependency:**
-    
     - _Implicit:_ `id = aws_instance.web.id`
-        
     - _Explicit:_ `depends_on = [aws_s3_bucket.b]`
-        
 - **Meta Arguments:** `depends_on`, `count`, `for_each`, `lifecycle`.
-    
 
 ### Function Cheat Sheet
 
@@ -591,19 +519,12 @@ resource "aws_instance" "example" {
 **Common Examples:**
 
 - `lookup({a="red"}, "a")` -> `"red"`
-    
 - `zipmap(["a", "b"], [1, 2])` -> `{a=1, b=2}`
-    
 - `element(["a", "b"], 0)` -> `"a"`
-    
 - `merge({a=1}, {b=2})` -> `{a=1, b=2}`
-    
 
 > **How to choose an IaC Tool?**
-> 
+
 > 1. Vendor lock-in risk? (Terraform supports multi-cloud)
->     
 > 2. Integration with Config Management (Ansible)?
->     
 > 3. Cost & Community Support?
->
