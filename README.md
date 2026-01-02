@@ -1,100 +1,153 @@
-# 01 Jan 2026 Terraform Cheatsheet (Commands, Codes & Steps)
-Terraform advanced file structure for project level
+# 01 Jan 2026 Terraform Cheatsheet
+> **Commands, Codes & Steps for the Terraform Associate & Advanced Usage**
 
-### Terraform basic commands
+![Terraform](https://img.shields.io/badge/terraform-%23623CE4.svg?style=for-the-badge&logo=terraform&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Maintained-green?style=for-the-badge)
 
+A comprehensive guide covering Terraform advanced file structures, CLI commands, HCL syntax, state management, and exam preparation notes.
+
+---
+
+## 📚 Table of Contents
+1. [Section 1: Basic Commands & Settings](#section-1-basic-commands--settings)
+2. [Section 2: Variables & Data Types](#section-2-variables--data-types)
+3. [Section 3: Logic, Functions & Locals](#section-3-logic-functions--locals)
+4. [Section 4: Data Sources & Debugging](#section-4-data-sources--debugging)
+5. [Section 5: Provisioners & Modules](#section-5-provisioners--modules)
+6. [Section 6: Workspaces & State Basics](#section-6-workspaces--state-basics)
+7. [Section 7: Remote State Management](#section-7-remote-state-management)
+8. [Section 8: Security Primer](#section-8-security-primer)
+9. [Section 9: HCP Cloud & Enterprise](#section-9-hcp-cloud--enterprise)
+10. [Section 10: Terraform Challenges](#section-10-terraform-challenges)
+11. [Section 11: Exam Prep Notes](#section-11-terraform-associate-exam)
+
+---
+## Section 1: Basic Commands & Settings
+
+### Initialization & Lifecycle
 ```
-terraform init
-or 
-terraform init -upgrade
-terraform fmt
-terraform validate
-terraform plan
+terraform init          # Initialize directory
+terraform init -upgrade # Upgrade modules/plugins
 
-or 
-terraform plan -out ec2.plan     
-# its like a version of plan
-terraform show -json ec2.plan | jq
-terraform apply 
-or 
-terraform apply ec2.plan
-<!-- terraform destroy -->
+terraform fmt           # Format code
+terraform validate      # Check for syntax errors
+
+terraform plan          # Preview changes
+terraform plan -out ec2.plan   # Save plan
+terraform show -json ec2.plan | jq # View plan as JSON
+
+terraform apply         # Apply changes
+terraform apply ec2.plan # Apply saved plan
+
+# terraform destroy     # Destroy resources   
 ```
-### Terraform loads all configuration files in a directory as a single unit
 
-### for plan
+> [!NOTE] Terraform loads all configuration files in a directory as a single unit.
+
+### For plan
 terraform plan -var-file="dev.tfvars"
-### ways for varibels
-during command or env in terminals
+
+### terraform settings 
+```
+terraform {
+    required_version = ">= 1.14"
+}
+```
+
+### Targeting Resources
+
+Avoids API throttling or isolates changes.
+```
+terraform plan -target=aws_instance.ec2 
+terraform apply -target=aws_instance.ec2 
+terraform destroy -target=aws_instance.ec2 
+```
+
+---
+
+## Section 2: Variables & Data Types
 
 ### Variable Definition Precedence
-Terraform loads variables in the following order, with later sources taking precedence over earlier ones:
-1. Environment variables
-2. The terraform.tfvars file, if present.
-3. The terraform.tfvars.json file, if present.
-4. Any *.auto.tfvars or *.auto.tfvars.json files, processed in lexical orde filenames.
-5. Any -var and -var-file options on the command line
 
-### data types
-we can restrict types by using types to varibales in variables.tf example number, list([]), map({}), etc., 
+Terraform loads variables in this order (last one wins):
+
+1. Environment variables (`TF_VAR_name`)
+2. `terraform.tfvars`
+3. `terraform.tfvars.json`
+4. `*.auto.tfvars` or `*.auto.tfvars.json`
+5. `-var` and `-var-file` CLI options
+
+usage
+1. terraform plan -var-file="dev.tfvars"
+### Complex Data Types
+
+```
 variable "mylist" {
-    type = list(number)
-    default = ["1", "2", "3"]
+    type    = list(number)
+    default = [1, 2, 3]
 }
-variable "mymap" {
-    type = map(string)
-    default = {"one" = "1", "two" = "2", "three" = "3"}
-}
-variable "myset" {
-    type = set(string)
-    default = ["one", "two", "three"]
-}
-variable "mytuple" {
-    type = tuple(string)
-    default = ["one", "two", "three"]
-}
-### How to acces maps and list in code
-instance type = var.mylist[2]
-instance type = var.mymap["us-east-1"]  its a key value pair
 
-count = 3 for duplication of resources
+variable "mymap" {
+    type    = map(string)
+    default = {"one" = "1", "two" = "2"}
+}
+
+variable "myset" {
+    type    = set(string) # Unique values only
+    default = ["one", "two", "three"]
+}
+
+variable "mytuple" {
+    type    = tuple([string, number])
+    default = ["one", 2]
+}
+```
+
+**Accessing Values:**
+Terraform
+```
+instance_type = var.mylist[2]
+instance_type = var.mymap["us-east-1"] 
+```
 when using count use dynamic names with count index
 
-### H ow to use count index in resource
+---
+
+## Section 3: Logic, Functions & Locals
+
+### Count & Splat Expressions usage
+Terraform
+
+```
 resource "aws_instance" "ec2" {
     count = 3
     tags = {
-        Name = "ec2-${count.index}"
+        Name    = "ec2-${count.index}"
         project = var.project[count.index]
     }
 }
-### conditional expression  
+
+# Splat expression [*]
+output "arns" {
+    value = aws_instance.ec2[*].arn
+}
+```
+
+### Conditional Expressions
+Terraform
+```
 resource "aws_instance" "ec2" {
-    ami = "ami-0c55b159cbfafe1f0"
+    ami           = "ami-0c55b159cbfafe1f0"
     instance_type = var.env == "dev" ? "t2.micro" : "t2.small"
 }
-### How to use a builtin functions
 ```
-terraform console
-length(var.project)
-max(var.project)
-min(var.project)
-file("path/to/file")
-fileset("path/to/directory", "*.txt")
 
-resource "aws_iam_user" "user" {
-    name = "user"
-}
+### Locals
+Locals are private to the module and allow dynamic logic.
+Terraform
 
-resource "aws_iam_user_policy" "policy" {
-    name = "policy"
-    user = aws_iam_user.user.name
-    policy = file("iam-user-policy.json")
-}
- 
 ```
-### How to use locals & locals are private resource
-### with locals u can use functions to create dynamic values
 locals {
     project = ["dev", "prod", "staging"]
 }
@@ -108,50 +161,39 @@ resource "aws_instance" "ec2" {
         project_tags = local.project_tags
     }
 }
-
-### How to use data sources, it fetches data from aws,etc.,
-data "aws_instance" "ec2" {
-    filter {
-        name = "tag:project"
-        values = ["cgf"]
-    }
-}
 ```
-data "aws_ami" "my_image"{
+
+### Built-in Functions Console
+```
+terraform console
+> length(var.project)
+> max(var.project)
+> file("path/to/file")
+> zipmap(["a", "b"], [1, 2]) # Output: {"a"=1, "b"=2}
+> fileset("path/to/directory", "*.txt")
+```
+
+---
+
+## Section 4: Data Sources & Debugging
+
+### Data Sources
+Fetching data from AWS dynamically.
+Terraform
+```
+data "aws_ami" "my_image" {
     most_recent = true
-    owners = ["amazon"]
+    owners      = ["amazon"]
     filter {
-        name = "name"
+        name   = "name"
         values = ["al2023-ami-ecs-hvm*"]
     }
 }
-resource "aws_instance" "ec2" {
-    ami = data.aws_ami.my_image.id
-    instance_type = "t2.micro"
-}
-``` 
-### ssh verbosity
-ssh -vvv -i dpa_rsa@192.123.94.34
-
-### How to debug in terraform
-log level = debug
-log level = trace
-log level = info
-log level = warn
-log level = error
-```
-export TF_LOG="TRACE"
-export TF_LOG_PATH="./terraform.log"
-
 ```
 
-### How to troubleshoot terraform
-1. language error
-2. state error
-3. core errors
-4. provider errors
-
-### How to create dynamic block
+### Dynamic Blocks
+Cleanly handle repeated nested blocks (like ingress rules).
+Terraform
 ```
 variable "sg_ports" {
     type = list(number)
@@ -160,37 +202,265 @@ variable "sg_ports" {
 
 resource "aws_security_group" "dynamicsg" {
     name = "dynamic-sg"
-    description = "sg"
-
     dynamic "ingress" {
         for_each = var.sg_ports
         iterator = port
         content {
-            from_port = port.value
-            to_port = port.value
-            protocol = "tcp"
+            from_port   = port.value
+            to_port     = port.value
+            protocol    = "tcp"
             cidr_blocks = ["0.0.0.0/0"]
         }
     }
 }
 ```
-### Terraform options
+
+### Debugging
+**Log Levels:** `DEBUG`, `TRACE`, `INFO`, `WARN`, `ERROR`
+Bash
 ```
-terraform apply -replace="aws_instance.ec2"
-# destroys and recreate the resource
-terraform state rm aws_instance.ec2
-# remove the resource from state
-terraform state show aws_instance.ec2
-# show the resource from state
-terraform state list
-# list the resources in state
-terraform state pull
-# pull the state from s3
-terraform state push
-# push the state to s3
+export TF_LOG="TRACE"
+export TF_LOG_PATH="./terraform.log"
+```
+
+> [!NOTE]  **Common Errors:** Language, State, Core, Provider errors.
+
+---
+
+## Section 5: Provisioners & Modules
+### Provisioners
+> [!WARNING]
+> 
+> Use only as a last resort.
+
 
 ```
-### terraform spalat expression allows us to get a list of all attributes
+resource "aws_instance" "ec2" {
+    # ... config ...
+    
+    provisioner "remote-exec" {
+        inline = ["echo 'Hello' > index.html"]
+        when   = "create"
+    }
+
+    provisioner "local-exec" {
+        command    = "echo ${self.public_ip} >> server_ip.txt"
+        when       = "destroy"
+        on_failure = "continue"
+    }
+}
+```
+
+### Modules
+**Standard Structure:**
+Plaintext
+
+```
+$ tree minimal-module/
+.
+├── README.md
+├── main.tf
+├── variables.tf
+└── outputs.tf
+
+$ tree complete-module/
+.
+├── README.md
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── ...
+├── modules/
+│   ├── nestedA/
+│   │   ├── README.md
+│   │   ├── variables.tf
+│   │   ├── main.tf
+│   │   └── outputs.tf
+│   ├── nestedB/
+│   ├── .../
+├── examples/
+│   ├── exampleA/
+│   │   ├── main.tf
+│   ├── exampleB/
+│   ├── .../
+```
+
+**Usage:**
+Terraform
+```
+module "ec2" {
+    source = "./modules/ec2"
+    ami    = "ami-0c55b159cbfafe1f0"
+}
+# Accessing module output
+resource "aws_eip" "lb" {
+    instance = module.ec2.instance_id
+}
+```
+
+**Publishing Requirements:** GitHub Public Repo, Format `terraform-<Provider>-<Name>`, Semantic Versioning tags (v1.0.4), Standard module structure, the GitHub repository description is used to populate the short description of the module.
+**Basics of standard Module Structure:** diffrent modules for diffrent resources ex: Network, Web, App, Database, Routing, Security, Storage, etc.
+
+---
+## Section 6: Workspaces & State Basics
+### Workspaces
+Manage different environments (dev, prod) with the same code.
+```
+terraform workspace new dev
+terraform workspace select dev
+terraform workspace list
+terraform workspace show
+```
+
+**Workspace Interpolation:**
+Terraform
+```
+locals {
+    instance_type = {
+        default = "t2.micro"
+        "prod" = "t2.large"
+        "dev" = "t2.micro"
+    }
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-0c55b159cbfafe1f0"
+    instance_type = local.instance_type[terraform.workspace]  
+}
+```
+
+### Basic State Commands
+
+```
+terraform state rm aws_instance.ec2          # remove the resource from state
+terraform state show aws_instance.ec2        # show the resource from state
+terraform state mv aws_instance.ec2 new_name # Rename
+terraform state list                         # list the resources in state
+terraform state pull                         # pull the state from s3
+terraform state push                         # push the state to s3
+terraform apply -replace="aws_instance.ec2"  # destroys and recreate the resource
+terraform state replace aws_instance.ec2     # to replace aws_instance.ec2
+```
+
+### Terraform Graph
+
+```
+terraform graph | dot -Tsvg > graph.svg
+terraform graph -draw-cycles                # use graphviz locally  to visualize the graph 
+```
+
+---
+## Section 7: Remote State Management
+
+> [!IMPORTANT]
+> 
+> Always use Git for code (with .gitignore) and S3/Remote Backend for state.
+
+### S3 Backend Configuration
+
+Terraform
+```
+terraform {
+  backend "s3" {
+    bucket         = "eeswar-terraform-state"
+    key            = "terraform.tfstate"
+    region         = "us-east-1"
+    use_lockfile   = true
+    encrypt        = true
+    dynamodb_table = "eeswar-terraform-lock"
+    profile        = "eeswar"
+  }
+}
+```
+
+### State Locking
+Prevents concurrent operations. Terraform uses DynamoDB for locking with S3.
+
+```
+resource "time_sleep" "wait_100_seconds" {
+    create_duration = "100s"
+}
+
+```
+- **Force Unlock:** `terraform force-unlock <lock-id>` (Use with extreme caution).
+
+### Remote State Data Source
+
+Read outputs from another Terraform project's state file.
+Terraform
+```
+data "terraform_remote_state" "eip" {
+    backend = "s3"
+    config = {
+        bucket = "eeswar-terraform-state"
+        key    = "terraform.tfstate"
+        region = "us-east-1"
+    }
+}
+outputs "eip_addr" {
+    value = aws_eip.eip_addr
+}
+resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4"{
+ security_group_id = aws_vpc_security_group.allow_tls.id
+ cidr_ipv4 = "${data.terraform_remote_state.eip.outputs.eip_addr}/32"
+ ip_protocol = "tcp"
+ from_port = 443
+ to_port = 443
+}
+```
+
+---
+
+## Section 8: Security Primer
+
+### Sensitive Variables
+Terraform
+
+```
+variable "password" {
+    type      = string
+    sensitive = true
+}
+
+output "password" {
+    value     = var.password
+    sensitive = true
+}
+```
+> [!NOTE] for sensitive variables terraform will throw error if use it in outputs if you want to use it in outputs use 
+### HashiCorp Vault
+
+Dynamic secrets engine.
+Terraform
+
+```
+provider "vault" {
+    address = "[http://127.0.0.1:8200](http://127.0.0.1:8200)"
+    token   = "my-token"
+}
+```
+
+### Multiple Providers (Aliases)
+Terraform
+
+```
+provider "aws" {
+    alias  = "dev"
+    region = "us-east-1"
+}
+provider "aws" {
+    alias  = "prod"
+    region = "us-east-2"
+}
+
+resource "aws_instance" "ec2" {
+    provider = aws.dev
+    # ...
+}
+```
+
+
+### Terraform spalat expression allows us to get a list of all attributes
 ```
 resource "aws_iam_user" "user" {
     name = "user.${count.index}"
@@ -202,22 +472,9 @@ output "arns" {
     value = aws_iam_user.user[*].arn
 }
 ```
-### Terraform graph
-```
-terraform graph
-terraform graph | dot -Tsvg > graph.svg
-cat graph.svg
-terraform graph -draw-cycles
 
-# use graphviz locally  to visualize the graph
-```
-### terraform workspace
-```
-terraform workspace new dev
-terraform workspace select dev
-terraform workspace list
-```
-### terraform output
+
+### Terraform output
 ```
 resource "aws_iam_user" "user" {
     name = "user.${count.index}"
@@ -233,12 +490,6 @@ terraform output iam_arn
 # to see all outputs
 terraform output
 
-```
-### terraform settings 
-```
-terraform {
-    required_version = ">= 1.14"
-}
 ```
 
 ### How to target a single resource 
@@ -373,61 +624,7 @@ resource "aws_instance" "ec2" {
     }    
 }
 ```
-### terraform provisioners
-```
-# remote-exec local-exec
-resource "aws_instance" "ec2" {
-    ami = "ami-0c55b159cbfafe1f0"
-    instance_type = "t2.micro"
-    tags = {
-        Name = "ec2"
-    }    
-    connection {
-        type = "ssh"
-        user = "ec2-user"
-        private_key = file("~/.ssh/id_rsa")
-    }
-    provisioner "remote-exec" {
-        inline = [
-            "echo 'Hello, World!' > index.html",
-            "aws s3 cp index.html s3://my-bucket"
-        ]
-        when = "create"
-    }
-    provisioner "local-exec" {
-        when = "destroy"
-        on_failure = "continue"
-        # on_failure = "fail"
-        command = "echo 'Hello, World!' > index.html"
-        inline = [
-            "echo 'Hello, World!' > index.html",
-            "echo ${self.public_ip} >> server_ip.txt"
-        ]
-    }
-}
 
-```
-### How to use trusted modules by terraform parters
-```
-module "ec2" {
-    source = "./modules/ec2"
-    ami = "ami-0c55b159cbfafe1f0" 
-}
-# modules are predefined resources
-```
-### How to use child module outputs
-```
-module "ec2" {
-    source = "./modules/ec2"
-    ami = "ami-0c55b159cbfafe1f0" 
-}
-resource "aws_eip" "lb"{
-    instance = module.ec2.instance_id
-    domain = "vpc"
-}
-```
-### Basics of standard Module Structure
-diffrent modules for diffrent resources ex: Network, Web, App, Database, Routing, Security, Storage, etc.
 
 ### How to use multiple provider config in modules
 using alias feature
@@ -442,140 +639,10 @@ provider "aws" {
 }
 
 ```
-### Requirement for publishing modules
-| Requirement | Description |
-| Github | The module must be on GitHub and must be a public repo. This is only a requirement for the public registry. |
-| Named |  Module repositories must use this three-part name format terraform-Provider>-<Name> |
-| Repository Description |   he GitHub repository description is used to populate the short description of the module. |
-| Standard module structure | The module must adhere to the standard module structure. |
-| x.y.z tags for releases | The registry uses tags to identify module versions. Release tag names must be a semantic version, which can optionally be prefixed with a v. For example, v1.0.4 and 0.9.2 |
 
-### Tree Structure
-$ tree minimal-module/
-.
-├── README.md
-├── main.tf
-├── variables.tf
-└── outputs.tf
 
-$ tree complete-module/
-.
-├── README.md
-├── main.tf
-├── variables.tf
-├── outputs.tf
-├── ...
-├── modules/
-│   ├── nestedA/
-│   │   ├── README.md
-│   │   ├── variables.tf
-│   │   ├── main.tf
-│   │   └── outputs.tf
-│   ├── nestedB/
-│   ├── .../
-├── examples/
-│   ├── exampleA/
-│   │   ├── main.tf
-│   ├── exampleB/
-│   ├── .../
 
-### How to use diff values in workspaces
-```
-locals {
-    instance_type = {
-        default = "t2.micro"
-        "prod" = "t2.large"
-        "dev" = "t2.micro"
-    }
-}
-
-resource "aws_instance" "ec2" {
-    ami = "ami-0c55b159cbfafe1f0"
-    instance_type = local.instance_type[terraform.workspace]  
-}
-
-```
-
-### How to use workspaces
-```
-terraform workspace new dev
-# use terraform workspace to get list of commnds 
-terraform workspace list
-terraform workspace select dev
-terraform workspace delete dev
-terraform workspace show
-
-```
-# Section 7 Remote state management
-
-! always use git for collaboration along with gitignore file to avoid data leaks and use s3 for backend 
-
-### How to s3 backend 
-```
-terraform {
-    backend "s3" {
-    bucket = "eeswar-terraform-state"
-    key = "terraform.tfstate"
-    region = "us-east-1"
-    use_lockfile = true
-    encrypt = true
-    dynamodb_table = "eeswar-terraform-lock"
-    profile = "eeswar"
-  }
-}
-```
-
-### State locking
-```
-resource "time_sleep" "wait_100_seconds" {
-    create_duration = "100s"
-}
-
-```
-
-### terraform state management
-```
-terraform state list
-# to list all resources in state
-terraform state pull
-# to pull state from s3
-terraform state rm aws_instance.ec2
-# from now on terraform doesnt manage aws_instance.ec2
-terraform state mv aws_instance.ec2 aws_instance.ec2_new
-# to move/rename aws_instance.ec2 to aws_instance.ec2_new
-terraform state show aws_instance.ec2
-# to show state of aws_instance.ec2
-terraform state replace aws_instance.ec2
-# to replace aws_instance.ec2
-terraform state rm aws_instance.ec2
-# to remove aws_instance.ec2
-terraform state mv aws_instance.ec2 aws_instance.ec2_new
-# to move aws_instance.ec2 to aws_instance.ec2_new
-terraform state show aws_instance.ec2
-```
-### How to use remote state data source
-```
-data "terraform_remote_state" "eip{
-    backend = "s3"
-    config = {
-        bucket = "eeswar-terraform-state"
-        key = "terraform.tfstate"
-        region = "us-east-1"
-    }
-}
-outputs "eip_addr" {
-    value = aws_eip.eip_addr
-}
-resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4"{
- security_group_id = aws_vpc_security_group.allow_tls.id
- cidr_ipv4 = "${data.terraform_remote_state.eip.outputs.eip_addr}/32"
- ip_protocol = "tcp"
- from_port = 443
- to_port = 443
-}
-
-```
-### how to use terraform import
+### How to use terraform import
 ```
 import {
     to = aws_security_group.my_sg
@@ -589,94 +656,27 @@ terraform apply
 # above command will update state file with imported resource
 # now you can use this resource in your code with terraform 1.5
 ```
-# Section 8 Security Primer
 
-### How to use alias meta-argument
+
+---
+## Section 9: HCP Cloud & Enterprise
+
+**Key Features:**
+- **Organizations & Teams:** Governance structure.
+- **Workspaces:** VCS-driven, CLI-driven, or API-driven workflows.
+- **Sentinel:** Policy as Code (checks run _before_ apply).
+- **Private Registry:** Private storage for modules like aws ecr.
+- **Air Gap:** For strict security environments (no internet).
+- https://www.hashicorp.com/en/pricing?tab=terraform
+- 
+
+---
+
+## Section 10: Terraform Challenges
+
+### Challenge 1: Create AWS IP, you can modify your code as you like 
 ```
-provider "aws" {
-    alias = "dev"
-    region = "us-east-1"
-}
-provider "aws" {
-    alias = "prod"
-    region = "us-east-2"
-}
 
-resource "aws_instance" "ec2" {
-    provider = "aws.dev"
-    ami = "ami-0c55b159cbfafe1f0"
-    instance_type = "t2.micro"
-}
-
-resource "aws_instance" "ec2" {
-    provider = "aws.prod"
-    ami = "ami-0c55b159cbfafe1f0"
-    instance_type = "t2.micro"
-}
-
-```
-### How to use sensitive parameter
-```
-variable "password" {
-    type = string
-    sensitive = true
-}
-# for sensitive variables terraform will throw error if use it in outputs if you want to use it in outputs use 
-output "password" {
-    value = var.password
-    sensitive = true
-}
-
-```
-### How to use terraform(HashiCorp) vault, its like aws secrets manager
-```
-terraform apply -var="password=${vault_password}"
-# it creates temp credentials and use it to fetch secrets from vault
-
-provider "vault" {
-    address = "http://127.0.0.1:8200"
-    token = "my-token"
-}
-data "vault_generic_secret" "password" {
-    path = "secret/data/my-secret"
-}
-
-```
-###  How to use dependency lock
-```
-# its done automatically below is the file related to it
-.terraform.lock.hcl
-
-```
-# Section 9 HCP (HashiCorp Cloud Platform) cloud & Enterprise
-its like a ci/cd platform for infra as code
-### HCP Terraform pricing
-https://www.hashicorp.com/en/pricing?tab=terraform
-
-### HCP Terraform features
-1. organizations
-all companies uses only above feature not below features commonly
-2. Workspaces
-    1. version Control Workflow
-    2. CLI-driven Workflow
-    3. API-driven Workflow
-3. Projects
-4. Team Management
-5. 
-### Sentinal (Policy as Code)
-it is same as scp (service control policy) in aws 
-
-### Air gap in terraform cloud
-It ensures that data can only be accessed or transferred locally, preventing remote cyberattacks and unauthorized data exfiltration.
-
-### HCP Terraform private Reistry
-its like aws ecr but for terraform modules
-
-
-# Section 10 Terraform Challenges use trial and error method to solve challenges
-
-### Challenge 1 ip should be created in aws , you can modify your code as you like 
-```
 provider "aws" {
   version = "~> 2.54"
   region  = "us-east-1"
@@ -695,7 +695,55 @@ resource "aws_eip" "eeswar_app_ip" {
   vpc      = true
 }
 ```
-### challenge 2 optimize the code for best practices and resource should be created
+
+<details>
+
+<summary><b>Click to view Solution</b></summary>
+
+Terraform
+
+```
+
+terraform {
+  required_providers {
+    digitalocean = {
+      source = "digitalocean/digitalocean"
+      version = "2.71.0"
+    }
+  }
+}
+
+variable "do_token" {
+    type = string
+    sensitive = true
+}
+
+provider "digitalocean" {
+  token = var.do_token
+}
+
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "6.26.0"
+    }
+  }
+}
+
+provider "aws" {
+    region     = "us-east-1"
+    profile = "eeswar"
+    # credentials are given in variables at terminal level
+}
+resource "aws_eip" "lb" {
+  domain   = "vpc"
+}
+```
+
+</details>
+
+### Challenge 2: Security Group Optimization, and resource should be created
 ```
 terraform {
   required_providers {
@@ -757,84 +805,14 @@ resource "aws_security_group" "security_group_payment_app" {
 resource "aws_eip" "example" {
    domain = "vpc"
 }
-
-```
-### challenge 3  according to the values of map create resources  and if map values removed , ec2 instance should be deleted
-```
-# main.tf
-variable "instance_config" {
-  type = map
-  default = {
-    instance1 = { instance_type = "t2.micro", ami = "ami-03a6eaae9938c858c" }
-    instance2 = { instance_type = "t2.small", ami = "ami-053b0d53c279acc90" }
-  }
-}
-# providers.tf
-
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "us-east-1"
-}
-
-```
-### challenge 4 
-```
-.gitkeep file
-1. Clients wants a code that can create IAM user in AWS account with following
-syntax:
-admin-user-{account-number-of-aws}
-2. Client wants to have a logic that will show names of ALL users in AWS account in the output.
-3. Along with list of users in AWS, client also wants Terraform to show Total number of users in AWS.
 ```
 
-### Solution 1
-```
+<details>
 
-terraform {
-  required_providers {
-    digitalocean = {
-      source = "digitalocean/digitalocean"
-      version = "2.71.0"
-    }
-  }
-}
+<summary><b>Click to view Solution</b></summary>
 
-variable "do_token" {
-    type = string
-    sensitive = true
-}
+Terraform
 
-provider "digitalocean" {
-  token = var.do_token
-}
-
-terraform {
-  required_providers {
-    aws = {
-      source = "hashicorp/aws"
-      version = "6.26.0"
-    }
-  }
-}
-
-provider "aws" {
-    region     = "us-east-1"
-    profile = "eeswar"
-    # credentials are given in variables at terminal level
-}
-resource "aws_eip" "lb" {
-  domain   = "vpc"
-}
-```
-### Solution 2
 ```
 # use providers.tf  sg.tf variables.tf terraform.tfvars eip.tf
 terraform {
@@ -925,7 +903,41 @@ prod_apis = "8443"
 dev_vpc = "172.32.0.0/16"
 
 ```
-### Solution 3
+
+</details>
+
+###  Challenge 3: For_Each Map, if map values are removed , ec2 instance should 
+```
+# main.tf
+variable "instance_config" {
+  type = map
+  default = {
+    instance1 = { instance_type = "t2.micro", ami = "ami-03a6eaae9938c858c" }
+    instance2 = { instance_type = "t2.small", ami = "ami-053b0d53c279acc90" }
+  }
+}
+# providers.tf
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+```
+
+<details>
+
+<summary><b>Click to view Solution</b></summary>
+
+Terraform
+
 ```
 # main.tf
 variable "instance_config" {
@@ -962,7 +974,27 @@ provider "aws" {
   region = "us-east-1"
 }
 ```
-### Solution 4
+
+</details>
+
+### Challenge 4:  
+```
+.gitkeep file
+1. Clients wants a code that can create IAM user in AWS account with following
+syntax:
+admin-user-{account-number-of-aws}
+2. Client wants to have a logic that will show names of ALL users in AWS account in the output.
+3. Along with list of users in AWS, client also wants Terraform to show Total number of users in AWS.
+
+```
+
+
+<details>
+
+<summary><b>Click to view Solution</b></summary>
+
+Terraform
+
 ```
 # 2
 provider "aws" {
@@ -984,16 +1016,20 @@ resource "aws_iam_user" "admin-user-${data.aws_caller_identity.current.account_i
     name = "admin-user-${data.aws_caller_identity.current.account_id}"
     path = "/system/"
 }
-
-
 ```
 
-# Section 11 terraform associate exam
-### associate exam requirements
-1. physical governament id card is required to show during the exam
-2. recommended to have 2 another ids with larger text of name
-3. check your system compatability in chrome for exam 
-4. pyhysical space 
+</details>
+
+---
+## Section 11: Terraform Associate Exam
+
+### 📋 Exam Requirements
+
+1. **ID:** Physical Government ID required, recommended to have 2 another ids with larger text of name
+2. **Environment:** Clear desk, no electronics, no noise, adequate lighting.
+3. **Prohibitions:** No phones, smartwatches, or other people in the room.
+4. 3. check your system compatability in chrome for exam 
+5. pyhysical space 
       Room Requirements
     No one else is permitted to be in your testing room for the duration of your exam.
     Be sure your space is adequately lit, so the proctor can see you and your space.
@@ -1002,12 +1038,33 @@ resource "aws_iam_user" "admin-user-${data.aws_caller_identity.current.account_i
     Background noise must be as limited as possible.
     No phones, smartwatches, or other similar devices are allowed in the room.
     ***can be called same as aws exam***
-5. Make sure there are no notification that appear on your screen while giving the exams.
-6. Always verify the updated guidelines released by HashiCorp for the exams to ensure you get the latest update before sitting for the exams.
-7. https://hashicorp-certifications.zendesk.com/hc/en-us/articles/26234761626125-Exam-appointment-rules-and-requirements
-8. 
+6. Make sure there are no notification that appear on your screen while giving the exams.
+7. Always verify the updated guidelines released by HashiCorp for the exams to ensure you get the latest update before sitting for the exams.
+8. https://hashicorp-certifications.zendesk.com/hc/en-us/articles/26234761626125-Exam-appointment-rules-and-requirements
 
-### sample notes
+
+
+### 📝 Quick Review Notes
+
+- **Provider Block:** Not mandatory.
+- **Version Constraints:** `required_version = ">= 1.0"` locks Terraform core version.
+- **Refresh:** Deprecated; `terraform apply` refreshes state automatically.
+- **Functions:** User-defined functions are **not** supported.
+- **Implicit vs Explicit Dependency:**
+    - _Implicit:_ `id = aws_instance.web.id`
+    - _Explicit:_ `depends_on = [aws_s3_bucket.b]`
+- **Meta Arguments:** `depends_on`, `count`, `for_each`, `lifecycle`.
+
+### Function Cheat Sheet
+
+|**Category**|**Functions**|
+|---|---|
+|**Numeric**|`abs`, `ceil`, `floor`, `max`, `min`|
+|**String**|`concat`, `replace`, `split`, `join`, `tolower`, `toupper`|
+|**Collection**|`element`, `keys`, `length`, `merge`, `sort`, `slice`|
+|**Filesystem**|`file`, `filebase64`, `dirname`|
+
+```
 1. provider block is not mandatory
 2. different aliases can be used for the same provider
 3. store creds outside of terraform like env
@@ -1089,110 +1146,70 @@ red| zipmap(["a", "b"], [1, 2])
 "base64 encoded file contents sha256" |
 
 32. Meta arguments in terraform 
-  1. depends_on   description: used for explicit dependency
-  2. count description: used for creating multiple resources
-  3. for_each description: used for creating multiple resources
-  4. provider  desc: used for specifying provider
-  5. lifecycle desc: used for managing resource lifecycle
+33. depends_on   description: used for explicit dependency
+34. count description: used for creating multiple resources
+35. for_each description: used for creating multiple resources
+36. provider  desc: used for specifying provider
+37. lifecycle desc: used for managing resource lifecycle
      1. create_before_destroy  desc: used for creating resource before destroying
      2. prevent_destroy desc: used for preventing resource deletion
      3. ignore_changes desc: used for ignoring changes
      4. replace_triggered_by desc: used for replacing resource 
-33. sectinal checks : runs before plan
-34. terraform graph : visual representation of resources note dot format
-35. terraform tvfars : used for variables declaration > variables.tf > terraform.tfvars or dev.tfvars
-36. order variable defaults < *.tfcars < env variables < CLI variables   :::: env example export TF_VAR_vpn_ip="101.30.13.03/32"  in linux
-37. precedence -var in cli overerides *.auto.tfvars or *.auto.tfvars.json overerides terraform.tfvars.json overrides terraform.tfvars overerides env variables
-38. use outputs to store data about resource in state file
-39. terraform console : used for interactive mode
-40. dependency lock file : used for locking the version of the provider
-41. implecent vs explicit dependency : **Implicit** dependencies are created **automatically** when resources share data (referencing an ID), while **Explicit** dependencies are created **manually** using `depends_on` to force a specific order.
-42. features of Terraform enterprise plan
+38. sectinal checks : runs before plan
+39. terraform graph : visual representation of resources note dot format
+40. terraform tvfars : used for variables declaration > variables.tf > terraform.tfvars or dev.tfvars
+41. order variable defaults < *.tfcars < env variables < CLI variables   :::: env example export TF_VAR_vpn_ip="101.30.13.03/32"  in linux
+42. precedence -var in cli overerides *.auto.tfvars or *.auto.tfvars.json overerides terraform.tfvars.json overrides terraform.tfvars overerides env variables
+43. use outputs to store data about resource in state file
+44. terraform console : used for interactive mode
+45. dependency lock file : used for locking the version of the provider
+46. implecent vs explicit dependency : **Implicit** dependencies are created **automatically** when resources share data (referencing an ID), while **Explicit** dependencies are created **manually** using `depends_on` to force a specific order.
+47. features of Terraform enterprise plan
     1. sso
     2. auditing 
     3. private data center networking
     4. clustering
     5. Team & Governance feature are not available in terraform cloud free tier
     6. explore more on https://www.hashicorp.com/en/pricing?tab=terraform 
-43. HCP Hashicorp cloud platform , it also has private module registry
-44. encryption of state file is also available in saas of hcp
-45. Hcp workspace linked to version controlled repository(single branch)  then it runs auto on source code changes
-46. terraform apply -replace="aws_instance.ec2" : used for replacing resource
-47. Benefits of terraform iac 
+48. HCP Hashicorp cloud platform , it also has private module registry
+49. encryption of state file is also available in saas of hcp
+50. Hcp workspace linked to version controlled repository(single branch)  then it runs auto on source code changes
+51. terraform apply -replace="aws_instance.ec2" : used for replacing resource
+52. Benefits of terraform iac 
     1. Automation
     2. Version control
     3. Reusability
-48. modules of git registry : uses default branch u can also override it : git::https://github.com/terraform-aws-modules/vpc.git?ref=tags/v3.11.0
-49. splat expressions : used for accessing multiple values from a list or map : aws_instance.ec2[*].id
-50. list usage : var.list_of_values[0]
-51. map usage : var.map_of_values["key"]
-52. Large Infra: Break the infrastructure into separate state files (splitting the state) to prevent API rate limiting and reduce blast radius.
-53. backend : used for storing state file in remote storage :  migrate backend option is there
-54. Air Gapped environemnet isolation : isolates physical hardware from internet
-55. requirements for publishing Module in registry : 1. Github, 2. Named terraform-<Provider>-<Module Name> 3. Repo desc, 4. Standard Module structure 5. x.y.z tags for releases
-56. disadvantage of dynamic block : hard to read & maintain
-57. api & cli access for terraform is through tokens
-58. terrafomr uses parallelism to speed up the execution
-59. terraform providers can be installed through airgapped systems
-60. terraform & terrafomr provider doesnt need major version compatability
-61. ! sensitive values are visible in state file 
-62. during state lock : plan, destroy, apply, refresh, and other state commands are blocked
-63. go through terraform .gitignore file for more info
-64. terraform force-unlock <lock-id> : used for unlocking state file
-65. Data Type of Object & Multiple Provider Configuration in Modules are important for exam
-66. make use of Data Source for dynamic ami_id
-67. output values are defined in the Child and Root modules: When you run terraform apply it shows output values of root module without explicit call to teh child module.
-68. if variable typr is string and value is number then it converts to string automatically
-69. to migrate the Terraform state file from localhost to S3 bucket you need terraform init command not any other
-70. Terraform will not store the default value of the variable and its description in the Terraform state file
-71. 
+53. modules of git registry : uses default branch u can also override it : git::https://github.com/terraform-aws-modules/vpc.git?ref=tags/v3.11.0
+54. splat expressions : used for accessing multiple values from a list or map : aws_instance.ec2[*].id
+55. list usage : var.list_of_values[0]
+56. map usage : var.map_of_values["key"]
+57. Large Infra: Break the infrastructure into separate state files (splitting the state) to prevent API rate limiting and reduce blast radius.
+58. backend : used for storing state file in remote storage :  migrate backend option is there
+59. Air Gapped environemnet isolation : isolates physical hardware from internet
+60. requirements for publishing Module in registry : 
+	1. Github, 
+	2. Named terraform-<Provider>-<Module Name> 
+	   3. Repo desc, 
+	   4. Standard Module structure 
+	   5. x.y.z tags for releases
+61. disadvantage of dynamic block : hard to read & maintain
+62. api & cli access for terraform is through tokens
+63. terrafomr uses parallelism to speed up the execution
+64. terraform providers can be installed through airgapped systems
+65. terraform & terrafomr provider doesnt need major version compatability
+66. ! sensitive values are visible in state file 
+67. during state lock : plan, destroy, apply, refresh, and other state commands are blocked
+68. go through terraform .gitignore file for more info
+69. terraform force-unlock <lock-id> : used for unlocking state file
+70. Data Type of Object & Multiple Provider Configuration in Modules are important for exam
+71. make use of Data Source for dynamic ami_id
+72. output values are defined in the Child and Root modules: When you run terraform apply it shows output values of root module without explicit call to teh child module.
+73. if variable typr is string and value is number then it converts to string automatically
+74. to migrate the Terraform state file from localhost to S3 bucket you need terraform init command not any other
+75. Terraform will not store the default value of the variable and its description in the Terraform state file
 
 
-
-
-
-
- 
-
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
@@ -1260,42 +1277,5 @@ output "public_ip" {
 value = 
 }
 ```
-
-
-
-
-
-
-
-
-To make your GitHub repository appear in Google search results (a process known as Search Engine Optimization or SEO), you need to make it easily discoverable and ensure Google's web crawlers can index it.
-Here is what you should do to increase the visibility of your repository: https://github.com/EeswarSunny/Terraform-basics.
-
-1. Optimize Your GitHub Repository
-Google indexes GitHub pages like any other website. Optimizing your repo's content and metadata is crucial.
-Choose a Clear, Descriptive Name: Your current name, Terraform-basics, is good. It clearly states the topic.
-Write a Concise Description: In your repository settings, write a short, keyword-rich description (e.g., "A comprehensive Terraform cheat sheet for beginners in 2026, covering HCL, CLI commands, state management, and best practices.").
-Add Relevant Topics/Tags: Utilize GitHub's topic feature (located on the right sidebar of the repo page) and add relevant tags like terraform, cheat-sheet, devops, infrastructure-as-code, hcl, and iaas. This helps categorize your repository for both GitHub users and search engines.
-Create a High-Quality README.md: The content of your README is the most important part for SEO.
-Ensure the title clearly uses keywords (e.g., # Terraform Cheat Sheet 2026).
-Provide detailed, useful content. Google favors relevant and comprehensive content.
-Organize the information logically with headers, bullet points, and code snippets.
-Ensure the Repository is Public: Google can only index public repositories. Double-check your settings to ensure it is not private.
-
-2. Build Backlinks (External Links)
-The number and quality of links pointing to your repository tell Google that your content is valuable and authoritative. This is a primary driver of search rankings.
-Share on Social Media: Post links to your repository on platforms like LinkedIn, Twitter, and Reddit (in relevant communities like r/terraform or r/devops).
-Contribute to Related Discussions: If you are active on forums, blogs, or Q&A sites (like Stack Overflow), mention your cheat sheet as a resource when relevant to a discussion, linking back to your GitHub repo.
-List it on Resource Curations: Once your repo is mature, ask for it to be included in existing "Awesome Lists" for Terraform or DevOps (collections of useful resources curated by the community).
-Blog About It: Write a blog post on a platform like Medium, Dev.to, or your own blog about creating the cheat sheet and link to the GitHub repository as the primary source.
-
-3. Be Patient
-Google does not index new pages instantly.
-It can take anywhere from a few days to several weeks for Google to discover, crawl, and rank a brand-new link.
-The more links you build and the more traffic your repo receives, the faster Google is likely to index it.
-By following these steps, you will optimize your repo for discoverability and increase its chances of appearing in relevant Google searches.
-
-
-
 
 
